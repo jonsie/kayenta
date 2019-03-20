@@ -30,5 +30,11 @@ public class DatadogConfigurationProperties {
   private long metadataCachingIntervalMS = Duration.ofSeconds(60).toMillis();
 
   @Getter
+  @Setter
+  //The control and experimental groups are scoped by Orca with the server group name.  So, if you were deploying an EC2
+  //server group the autoscaling group name would be tagged with `autoscaling_group`.
+  private String canaryScopeTag;
+
+  @Getter
   private List<DatadogManagedAccount> accounts = new ArrayList<>();
 }

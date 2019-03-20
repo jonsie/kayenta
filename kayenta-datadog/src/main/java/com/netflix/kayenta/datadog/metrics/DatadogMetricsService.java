@@ -20,6 +20,7 @@ import com.netflix.kayenta.canary.CanaryConfig;
 import com.netflix.kayenta.canary.CanaryMetricConfig;
 import com.netflix.kayenta.canary.CanaryScope;
 import com.netflix.kayenta.canary.providers.metrics.DatadogCanaryMetricSetQueryConfig;
+import com.netflix.kayenta.datadog.config.DatadogConfigurationProperties;
 import com.netflix.kayenta.datadog.security.DatadogCredentials;
 import com.netflix.kayenta.datadog.security.DatadogNamedAccountCredentials;
 import com.netflix.kayenta.datadog.service.DatadogRemoteService;
@@ -43,11 +44,7 @@ import org.springframework.util.StringUtils;
 
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Builder
@@ -60,6 +57,9 @@ public class DatadogMetricsService implements MetricsService {
 
   @Autowired
   private final AccountCredentialsRepository accountCredentialsRepository;
+
+  @Autowired
+  private final DatadogConfigurationProperties datadogConfigurationProperties;
 
   @Autowired
   private final Registry registry;
@@ -83,8 +83,16 @@ public class DatadogMetricsService implements MetricsService {
                            CanaryMetricConfig canaryMetricConfig,
                            CanaryScope canaryScope) {
     DatadogCanaryMetricSetQueryConfig queryConfig = (DatadogCanaryMetricSetQueryConfig)canaryMetricConfig.getQuery();
+    String canaryScopeTag = Optional.ofNullable(datadogConfigurationProperties.getCanaryScopeTag())
+            .orElseThrow(() -> new IllegalArgumentException("No Datadog canaryScopeTag was configured."));
 
-    return queryConfig.getMetricName() + "{" + canaryScope.getScope() + "}";
+    StringJoiner stringJoiner = new StringJoiner(",");
+    stringJoiner.add(canaryScopeTag+":"+canaryScope.getScope());
+
+    Optional<Map<String, String>> extendedScopeParams = Optional.of(canaryScope.getExtendedScopeParams());
+    extendedScopeParams.ifPresent(params -> params.forEach((k, v) -> stringJoiner.add(k+":"+v)));
+
+    return queryConfig.getMetricName() + "{"+ stringJoiner.toString() +"}";
   }
 
   @Override
